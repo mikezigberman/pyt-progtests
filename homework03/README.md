@@ -1,7 +1,11 @@
 # Homework03 -- ORB detector
   
 This homework will guide you through the implementation of part of the **ORB** (Oriented FAST and Rotated BRIEF) pipeline. The ORB consists of the feature detector and feature descriptor that detect and describe reproducible and discriminative regions in an image. Those, in turn, can be matched between pairs of images for correspondence search, 3D reconstruction, and so on.
-  
+
+![stereo](https://user-images.githubusercontent.com/30218257/232539782-93d55220-7d91-4e20-9e8c-f72ef723310e.jpeg)
+
+![matching](https://user-images.githubusercontent.com/30218257/232539947-7c2a1939-058f-498c-adae-f9f894e559c6.jpeg)
+
 Follow `orb.ipynb` to see how you can use the ORB pipeline for correspondence matching. In this homework, we will focus only on implementing the keypoints detector. The second part of `orb.ipynb` depends on your implementation, so you can incrementally implement your solution and watch how it works in jupyter notebook.
 
 ## What you should know before you start
@@ -16,9 +20,11 @@ In the ORB pipeline, the keypoints detector is an improved version of the **FAST
   
 *Notice: You cannot use np.abs(center_pixel - $I_i$) < $t$*; you must take the sign of intensity distance into account.
   
-<p  align="center">
+
+![orb](https://user-images.githubusercontent.com/30218257/232540161-d69e7f9f-e8df-4fad-beb5-4f36ebf5a79d.jpeg)
+
 <i><b>Left</b>: rotated FAST keypoints detector. <b>Right</b>: oriented BRIEF keypoints descriptor.</i>
-</p>
+
   
 We will start by implementing the basic version of the FAST keypoints detector. You will find the implementation template in `orb.py`. Implement the `detect_keypoints()` function. You will find helper testing code in `orb.ipynb` and some testing images in the `test_images` folder. 
 
@@ -28,49 +34,40 @@ To speed up the keypoint detection, FAST performs intensity checks in two steps:
   
 *Hint: do not test pixels whose index are closer than `FAST_CIRCLE_RADIUS` to the image border. In the provided template, there is also the parameter `border`, which means how many rows/columns are at the image border where no keypoints should be reported.*
   
-<p  align="center">
+![fast_test](https://user-images.githubusercontent.com/30218257/232540702-e3e3ee9d-8f15-4f95-928e-18ce0796531e.jpeg)
 
 <i>In the first step, test the center pixel only against pixels 1, 5, 9, and 13, marked in yellow. Then, if the first test passes, test the center pixel against all 16 pixels on the circle.</i>
-</p>
 
 *Hint: You can split a `detect_keypoints()` implementation into three steps: In `get_first_test_mask()`, you can create a mask of the original image where each pixel contains `True` if a given pixel passes the first 4-point check otherwise `False`. Next, in `get_second_test_mask()`, you can flag pixels that did not pass the full circle test with False. In the final step, you use these masks to detect key points. **However, both `get_first_test_mask()` and `get_second_test_mask()` are not undergoing tests so you can implement `detect_keypoints()` without them in your way.***
 
 ## Step 2 
 Following the OpenCV's implementation, for each keypoint, we also compute a score as a *maximum of minimum abs-differences* between the center pixels and all consecutive groups of 9 pixels on the Bresenham circle. For this, implement `calculate_kp_scores()` and call it from `detect_keypoints()` to get a score for all points in the initial FAST keypoints list (i.e., to `keypoints` variable).
   
-<p  align="center">
+![9px](https://user-images.githubusercontent.com/30218257/232541012-01630450-0397-4bdd-9782-1347c3a3677e.jpeg)
 
 <i><b>Left</b>: example image. <b>Right</b>: taking 9 consecutive pixels on a circle for the min abs-difference computation.</i>
-</p>
   
 For each added keypoint, compare it to all groups of 9 consecutive pixels on the circle (you will have 16 groups like this, each starting from a different pixel on the circle). Calculate the minimum of absolute differences between the center keypoints and those 9 pixels. Report the final keypoint score as a maximum of those minimums from all 16 groups.
   
 *Hint: `np.roll()` In case you use `np.roll` for 2d shifts, better use argument `axis=(0,1)`.*
     
-<p  align="center">
+![consecutive](https://user-images.githubusercontent.com/30218257/232541132-fdc7ff66-f655-4552-8ba5-59ee83258116.png)
 
 <i>Example of three groups of 9 consecutive pixels. You have to take all 16 such groups and, for each group, calculate the minimum of the absolute differences. The final score is the maximum of those minimums.</i>
-</p>
   
 ## Step 3
 In ORB, this FAST keypoint detection is performed in multiple levels of an image pyramid to detect multi-scale keypoints appropriately. Implement the `create_pyramid()` function, which takes an image `img` and downscales it by `downscale_factor`  `n_pyr_layer` times. On the first level is the original image, then downscaled are the following.
   
 *Hint: `cv2.resize()`, be careful, `cv2.resize()`  expects switched X and Y coordinates than NumPy. The size of each level should be calculated as a float but rounded up.*
   
-<p align="center">
-
-</p>
+![pyramid](https://user-images.githubusercontent.com/30218257/232541225-5905a8ac-4728-418b-8fff-4ff9ec603765.jpeg)
   
 ## Step 4
 ORB comes with further improvements to the FAST keypoints detector. For example, it is noted that FAST can detect too many edges, which do not provide as good interest points as actual corners. To deal with it, the Harris corner measure is computed for each interest point detected in the previous step. The keypoints from the previous step are then sorted by the resulting corner measure. The top-$N_{max}$ keypoints are kept for each level where $N_{max}$ can be (and, in our implementation, will be) different for each level of the image pyramid.
   
-<p  align="center">
+![corners](https://user-images.githubusercontent.com/30218257/232732516-5df2953b-2bf3-4508-804f-f78019723cf0.png)
 
-</p>
-
-<p align="center">
-
-</p>
+![cornerness](https://user-images.githubusercontent.com/30218257/232732620-f8c07cd7-1f42-417d-8269-db922d3b16d4.png)
   
 Harris corner measure is a simple way to evaluate the "cornerness" of a pixel and is computed as:
 
@@ -81,18 +78,14 @@ $$R = det(A) - k*trace^2(A)$$
   
 Where $k$ is a constant usually equal to 0.05, and $A$ is the second-moment matrix for the given image (also called a structure tensor), defined as follows:
   
-<p align="center">
-
-</p>
+![structure_tensor_simplified](https://user-images.githubusercontent.com/30218257/232732855-ef87555a-b51f-4dd6-84de-13276045d4f6.png)
   
 While the equation may seem confusing, you can calculate the second-moment matrix in several simple steps:s
   
 * Implement `get_x_derivative()` and `get_y_derivative()` to compute the x and y derivatives of the input image. The easiest way to do it is by applying the Sobel operator. Similar to the Gaussian filter, Sobel is a separable filter.
   
-<p align="center">
+![sobel](https://user-images.githubusercontent.com/30218257/232733056-f08e61ac-e98e-4ac6-8872-739fec5bf2de.png)
 
-</p>
-  
 *Hint: both these functions can be implemented in two lines each **without** usage of functions such as `np.convolve`, `scipy.signal.convolve2d`, and so on. Simple mathematical operations with `NumPy` are enough (+, -, and \*). Also, consider using `.astype(...)` to avoid numerical errors during your calculations and `np.pad()` to keep the original image dimension.*
   
 *Hint 2: `scipy.signal.convolve2d` preserves dimension with parameter `mode='same'`, but the values in the first and last row/column differ from those expected here. These rows/columns should be filled by zeros if you use `scipy.signal.convolve2d`.*
